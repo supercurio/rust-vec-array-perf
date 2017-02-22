@@ -3,7 +3,7 @@ CFLAGS=-std=c11
 LDFLAGS=
 MARCH ?= native
 
-TARGET_EXEC ?= vec-overhead-cpp
+TARGET_EXEC ?= vec-array-perf-cpp
 
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src

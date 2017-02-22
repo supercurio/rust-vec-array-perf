@@ -174,10 +174,7 @@ fn print_elapsed(msg: &str, start: u64, filter_count: usize) {
     let elapsed = precise_time_ns() - start;
     let duration = elapsed as f64 / filter_count as f64 / SAMPLE_COUNT as f64;
     let realtime = 1.0 / duration / SAMPLE_RATE * 1e+9;
-    println!("\t{}:\t{:.3} ns\t{:.0}x realtime for generator + IIR filter",
-             msg,
-             duration,
-             realtime);
+    println!("\t{}:\t{:.3} ns\t{:.0}x realtime", msg, duration, realtime);
 }
 
 macro_rules! create_iir_function {
@@ -223,6 +220,9 @@ create_iir_function!(iir_2048);
 create_iir_function!(iir_4096);
 
 fn main() {
+
+    println!("Rust Vector and Array performance comparison");
+
     let mut sqw = SquareWave::new(50.0);
 
     let mut biquad_gain_positive = true;

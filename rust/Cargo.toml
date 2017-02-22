@@ -1,5 +1,5 @@
 [package]
-name = "vec-overhead-rust"
+name = "vec-array-perf-rust"
 version = "0.1.0"
 authors = ["supercurio"]
 

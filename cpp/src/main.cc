@@ -120,8 +120,9 @@ void print_elapsed(std::string msg, std::chrono::steady_clock::time_point start,
   double duration =
       elapsed.count() / static_cast<double>(filter_count) / SAMPLE_COUNT;
   double realtime = 1.0 / duration / SAMPLE_RATE * 1e+9;
-  cout << "\t" << msg << "\t" << duration << " ns"
-       << "\t" << realtime << "x for generator + IIR filter\n";
+  cout << "\t" << msg << ":\t" << std::fixed << std::setprecision(3) << duration
+       << " ns"
+       << "\t" << std::setprecision(0) << realtime << "x realtime\n";
 }
 
 void iir(vector<double> &buf, Biquad *bq) {
@@ -139,7 +140,7 @@ void iir(vector<double> &buf, Biquad *bq) {
 }
 
 int main(int argc, char **argv) {
-  cout << "DSP Bench C++\n";
+  cout << "C++ vector performance reference\n";
 
   // initialize the square wave generator struct
   SquareWave *sqw = new SquareWave(50.0);
@@ -158,7 +159,7 @@ int main(int argc, char **argv) {
     unsigned int filter_count = FILTER_COUNT;
     unsigned int buffer_count = SAMPLE_COUNT / buffer_len;
 
-    cout << "Buffer size: " << buffer_len << " samples\n";
+    cout << "\nBuffer size: " << buffer_len << " samples\n";
 
     // create the buffer
     vector<double> *buf = new vector<double>;
@@ -186,7 +187,7 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    print_elapsed("vector", start, filter_count);
+    print_elapsed("C++ vector", start, filter_count);
 
 #ifdef WRITE_BUFFERS
     output->close();
