@@ -17,12 +17,19 @@ use std::path::Path;
 use byteorder::{WriteBytesExt, LittleEndian};
 
 
+/// Audio sample rate for the test set, used for realtime speed
+/// calculation
 const SAMPLE_RATE: f64 = 48000.0;
+/// Will allow to test buffer sizes up to 4096
 const BUFFER_LEN_TESTS: u32 = 13;
+/// Total length of samples the filter benchmarks are ran on
 const SAMPLE_COUNT: u64 = 524288;
+/// Select how many IIR filters should be applied consecutively
+/// on each buffer during the benchmark
 const FILTER_COUNT: usize = 100;
 
 
+/// Square wave generator
 struct SquareWave {
     switch_samples: usize,
     status: bool,
@@ -30,6 +37,7 @@ struct SquareWave {
 }
 
 impl SquareWave {
+    /// Builds a new `SquareWave` initialized with the oscillator frequency
     fn new(frequency: f64) -> SquareWave {
         SquareWave {
             switch_samples: (SAMPLE_RATE / frequency / 2.0).round() as usize,
@@ -44,6 +52,8 @@ impl SquareWave {
     }
 }
 
+
+/// 2nd order biquad filter
 #[derive(Copy)]
 struct Biquad {
     b0: f64,
@@ -79,6 +89,8 @@ impl Biquad {
         }
     }
 
+    /// Calculate coefficients and initialize `Biquad` struct following
+    /// audio EQ CookBook peak eq from Robert Bristow-Johnson
     fn peak_eq(fs: f64, f0: f64, q: f64, db_gain: f64) -> Biquad {
         let a = 10.0_f64.powf(db_gain / 40.0);
         let omega = 2.0 * PI * f0 / fs;
@@ -105,6 +117,7 @@ impl Biquad {
         }
     }
 
+    /// Reset filter's state accumulators
     fn reset(&mut self) {
         self.x1 = 0.0;
         self.x2 = 0.0;
@@ -113,20 +126,25 @@ impl Biquad {
     }
 }
 
+/// Reset a list of `Biquad`
 fn reset_biquads(biquads: &mut [Biquad]) {
     for biquad in biquads {
         biquad.reset();
     }
 }
 
+
+/// Generate a buffer as `Vec` of a defined size
 fn get_buffer_vec(length: usize) -> Vec<f64> {
     let mut vec: Vec<f64> = Vec::new();
     vec.resize(length, 0.0);
     vec
 }
 
+
 macro_rules! create_fill_buffer_function {
     ($func:ident) => (
+        /// Fills the provided buffer using `SquareWave` generator
         fn $func(buf: &mut [f64], sqw: &mut SquareWave) {
             for sample in buf {
                 if sqw.progress == sqw.switch_samples {
@@ -141,16 +159,21 @@ macro_rules! create_fill_buffer_function {
     )
 }
 
-
 #[cfg(feature = "write_buffers")]
+/// Write buffers to disk in order to verify the algorithms's integrity
+///
+/// Build with `cargo build --release --features write_buffers` then
+/// run `md5sum /tmp/vec-array-perf-*`
+/// Each file should be identical as well as identical to the C++ demo's output
 struct OutputPcmFile {
     writer: BufWriter<File>,
 }
 
 #[cfg(feature = "write_buffers")]
 impl OutputPcmFile {
+    /// Creates a new output file used for integrity verification purposes
     fn new(path_name: String) -> OutputPcmFile {
-        let path = format!("/tmp/vec_overhead_rust_{}", path_name);
+        let path = format!("/tmp/vec-array-perf-rust_{}", path_name);
 
         std::fs::remove_file(path.as_str()).ok();
 
@@ -161,6 +184,7 @@ impl OutputPcmFile {
         OutputPcmFile { writer: stream }
     }
 
+    /// Write the provided buffer to disk
     fn write_buffer(&mut self, buf: &[f64]) {
         for sample in buf {
             let mut wtr = vec![];
@@ -170,6 +194,8 @@ impl OutputPcmFile {
     }
 }
 
+
+/// Displays the benchmark timing results and an realtime performance estimate
 fn print_elapsed(msg: &str, start: u64, filter_count: usize) {
     let elapsed = precise_time_ns() - start;
     let duration = elapsed as f64 / filter_count as f64 / SAMPLE_COUNT as f64;
@@ -177,8 +203,11 @@ fn print_elapsed(msg: &str, start: u64, filter_count: usize) {
     println!("\t{}:\t{:.3} ns\t{:.0}x realtime", msg, duration, realtime);
 }
 
+
 macro_rules! create_iir_function {
     ($func:ident) => (
+        /// Apply the supplied `Biquad` digital filter coefficients using a
+        /// Direct Form 2 IIR digital filter on the provided buffer
         fn $func(buf: &mut [f64], bq: &mut Biquad) {
             for y in buf {
                 let x = *y;
@@ -194,6 +223,20 @@ macro_rules! create_iir_function {
         }
     )
 }
+
+
+// Create fill_buffer, iir,  unique fill_buffer_size and iir_size functions
+//
+// They will be used for vector, array slice and fixed-size arrays
+// benchmarks.
+//
+// The reason to create functions for a unique size is:
+//  On many platforms, if a function works on a &mut [f64] input parameter
+// called with different array or array slice sizes, the resulting speed
+// is close or identical to to the performance with vectors
+//
+// However, on other platforms performance is noticeably higher if the iir
+// function is only called with a single size of array as input parameter
 
 create_fill_buffer_function!(fill_buffer);
 create_fill_buffer_function!(fill_buffer_8);
@@ -219,12 +262,20 @@ create_iir_function!(iir_1024);
 create_iir_function!(iir_2048);
 create_iir_function!(iir_4096);
 
-fn main() {
 
+fn main() {
     println!("Rust Vector and Array performance comparison");
 
     let mut sqw = SquareWave::new(50.0);
 
+    // Generate an array of biquads that will be applied
+    // with the iir function later
+    //
+    // The biquads's gain is switched each time between positive  negative
+    // in order to keep the input signal within thr -1.0/+1.0 range expected
+    // If FILTER_COUNT is set to a multiple of 2, the output signal will remain
+    // near identical to the input, beside the noise and distortion introduced
+    // by 64-bit calculations
     let mut biquad_gain_positive = true;
     let mut biquads = [Biquad::new(); FILTER_COUNT];
     for i in 0..FILTER_COUNT {
@@ -234,12 +285,14 @@ fn main() {
     }
 
 
+    /// Iterate over buffer sizes
     for i in 3..BUFFER_LEN_TESTS {
         let buffer_len = (2_u64).pow(i) as usize;
         let buffer_count = SAMPLE_COUNT / buffer_len as u64;
 
         println!("\nBuffer size: {} samples", buffer_len);
 
+        // Scope to run the benchmarks for vectors
         {
             sqw.reset();
             reset_biquads(&mut biquads);
@@ -261,6 +314,7 @@ fn main() {
             print_elapsed("sized vector", start, FILTER_COUNT);
         }
 
+        // Scope to run the benchmarks for sliced arrays
         {
             sqw.reset();
             reset_biquads(&mut biquads);
@@ -282,6 +336,7 @@ fn main() {
             print_elapsed("array slice", start, FILTER_COUNT);
         }
 
+        // Scope to run the benchmarks for unique fixed-sizes arrays
         {
             sqw.reset();
             reset_biquads(&mut biquads);
