@@ -1,4 +1,4 @@
-CXXFLAGS=-std=c++14
+CXXFLAGS=-std=c++11
 CFLAGS=-std=c11
 LDFLAGS=
 MARCH ?= native
