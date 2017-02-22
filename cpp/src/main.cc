@@ -14,12 +14,20 @@
 using std::cout;
 using std::vector;
 
+// Audio sample rate for the test set, used for realtime speed
+// calculation
 #define SAMPLE_RATE 48000.0
+// Will allow to test buffer sizes up to 4096
 #define BUFFER_LEN_TESTS 13
+// Total length of samples the filter benchmarks are ran on
 #define SAMPLE_COUNT 524288
+// Select how many IIR filters should be applied consecutively
+// on each buffer during the benchmark
 #define FILTER_COUNT 100
+
 // #define WRITE_BUFFERS
 
+// Square wave generator settings and status
 struct SquareWave {
   size_t switch_samples;
   bool status;
@@ -37,6 +45,7 @@ struct SquareWave {
   }
 };
 
+// Fill the provided buffer with a square wave generator
 void fill_buffer(vector<double> &buf, SquareWave *sqw) {
   for (unsigned int i = 0; i < buf.size(); i++) {
     if (sqw->progress == sqw->switch_samples) {
@@ -49,6 +58,7 @@ void fill_buffer(vector<double> &buf, SquareWave *sqw) {
   }
 }
 
+// 2nd order biquad filter
 struct Biquad {
   double b0;
   double b1;
@@ -61,6 +71,8 @@ struct Biquad {
   double y1 = 0.0;
   double y2 = 0.0;
 
+  // Calculate coefficients and initialize the Biquad struct following
+  // audio EQ CookBook peak eq from Robert Bristow-Johnson
   static Biquad peak_eq(double fs, double f0, double q, double db_gain) {
     double A = pow(10.0, db_gain / 40.0);
     double omega = 2 * M_PIl * f0 / fs;
@@ -80,6 +92,7 @@ struct Biquad {
     return bq;
   }
 
+  // Reset filter's state accumulators
   void reset() {
     x1 = 0.0;
     x2 = 0.0;
@@ -88,6 +101,7 @@ struct Biquad {
   }
 };
 
+// Reset a list of Biquad
 void reset_biquads(vector<Biquad> &biquads) {
   for (auto &biquad : biquads) {
     biquad.reset();
@@ -95,6 +109,11 @@ void reset_biquads(vector<Biquad> &biquads) {
 }
 
 #ifdef WRITE_BUFFERS
+// Write buffers to disk in order to verify the algorithms's integrity
+//
+// Build with `WRITE_BUFFERS make` then
+// run `md5sum /tmp/vec-array-perf-*`
+// Each file should be identical as well as identical to the C++ demo's output
 struct OutputPcmFile {
   std::ofstream writer;
 
@@ -112,6 +131,7 @@ struct OutputPcmFile {
 };
 #endif
 
+// Displays the benchmark timing results and a real-time performance estimate
 void print_elapsed(std::string msg, std::chrono::steady_clock::time_point start,
                    uint64_t filter_count) {
   auto end = std::chrono::steady_clock::now();
@@ -125,6 +145,8 @@ void print_elapsed(std::string msg, std::chrono::steady_clock::time_point start,
        << "\t" << std::setprecision(0) << realtime << "x realtime\n";
 }
 
+// Apply the supplied biquad digital filter coefficients using a
+// Direct Form 2 IIR digital filter on the provided buffer
 void iir(vector<double> &buf, Biquad *bq) {
   for (unsigned int i = 0; i < buf.size(); i++) {
     double x = buf[i];
@@ -145,6 +167,14 @@ int main(int argc, char **argv) {
   // initialize the square wave generator struct
   SquareWave *sqw = new SquareWave(50.0);
 
+  // Generate an vector of biquads that will be applied
+  // with the iir function later
+  //
+  // The biquads's gain is switched each time between positive  negative
+  // in order to keep the input signal within thr -1.0/+1.0 range expected
+  // If FILTER_COUNT is set to a multiple of 2, the output signal will remain
+  // near identical to the input, beside the noise and distortion introduced
+  // by 64-bit calculations
   vector<Biquad> biquads;
   bool biquad_gain_positive = true;
   for (unsigned i = 0; i < FILTER_COUNT; i++) {
@@ -153,6 +183,7 @@ int main(int argc, char **argv) {
     biquads.push_back(Biquad::peak_eq(SAMPLE_RATE, 50.0, 0.3, db_gain));
   }
 
+  // Iterate over buffer sizes
   for (unsigned int l = 3; l < BUFFER_LEN_TESTS; l++) {
     size_t buffer_len = pow(2, l);
 

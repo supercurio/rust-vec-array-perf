@@ -89,7 +89,7 @@ impl Biquad {
         }
     }
 
-    /// Calculate coefficients and initialize `Biquad` struct following
+    /// Calculate coefficients and initialize the `Biquad` struct following
     /// audio EQ CookBook peak eq from Robert Bristow-Johnson
     fn peak_eq(fs: f64, f0: f64, q: f64, db_gain: f64) -> Biquad {
         let a = 10.0_f64.powf(db_gain / 40.0);
@@ -195,7 +195,7 @@ impl OutputPcmFile {
 }
 
 
-/// Displays the benchmark timing results and an realtime performance estimate
+/// Displays the benchmark timing results and a real-time performance estimate
 fn print_elapsed(msg: &str, start: u64, filter_count: usize) {
     let elapsed = precise_time_ns() - start;
     let duration = elapsed as f64 / filter_count as f64 / SAMPLE_COUNT as f64;
@@ -283,7 +283,6 @@ fn main() {
         biquad_gain_positive = !biquad_gain_positive;
         biquads[i] = Biquad::peak_eq(SAMPLE_RATE, 50.0, 0.3, db_gain);
     }
-
 
     /// Iterate over buffer sizes
     for i in 3..BUFFER_LEN_TESTS {
