@@ -1,0 +1,2 @@
+export BUILD_DIR=./build-pi3
+export MARCH=armv8-a

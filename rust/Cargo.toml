@@ -1,0 +1,13 @@
+[package]
+name = "vec-overhead-rust"
+version = "0.1.0"
+authors = ["supercurio"]
+
+[features]
+# feature used to write the buffers on disk in order to
+# the the outputs' integrity
+write_buffers = []
+
+[dependencies]
+time = "*"
+byteorder = "1"
