@@ -28,9 +28,15 @@ arm, armv7, aarch64 architectures, GCC and Clang compilers.
 * The same algoritm working on an Array-backed buffer is usually 20% to 60%
   faster than with a Vector-backed buffer
 * Two most recently designed CPUs (1 Intel, 1 ARM64) tested perform
-  identically between Array and Vector buffern
+  identically between Array and Vector buffers
 * Only one CPU tested (Intel Core2 Duo) is slower by 10% working on an Array
   buffer versus Vector
 * The performance gap occurs on 32-bit and 64-bit architectures also x86_64
   and ARM processors
 
+## Rust compared to C++
+* Rust performance is comparable to C++ overall
+* On the systems exhibiting the Vector/Array perf difference:
+  * Rust Vector is slower than GCC C++ Vector
+  * Rust Array is faster than GCC C++ Vector
+  * Rust Vector is near-identical to Clang C++ Vector
