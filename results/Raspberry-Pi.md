@@ -1,5 +1,5 @@
-# Raspberry Pi 3
-## armv7
+# Raspberry Pi (BCM2835, ARM11, 700 MHz)
+## arm
 
 ### Rust Vector and Array performance comparison
 #### rust 1.15.1

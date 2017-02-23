@@ -1,4 +1,4 @@
-# Raspberry Pi 3
+# Raspberry Pi 3 (BCM2837, Cortex A53, 1.2 GHz)
 ## armv7
 
 ### Rust Vector and Array performance comparison
